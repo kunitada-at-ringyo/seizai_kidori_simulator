@@ -23,108 +23,119 @@
         input[type="number"] { 
             width: 100%; 
             border: 1px solid #cbd5e1; 
-            padding: 8px; 
-            border-radius: 8px;
-            font-size: 16px; /* モバイルでのズーム防止 */
+            padding: 6px; 
+            border-radius: 6px;
+            font-size: 16px;
             appearance: none;
+            text-align: center;
         }
-        label { font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 2px; display: block; }
+        label { font-size: 0.7rem; font-weight: 700; color: #475569; display: block; }
         .result-card { 
             background: linear-gradient(135deg, #334155 0%, #0f172a 100%); 
             color: white; 
-            padding: 12px;
+            padding: 10px 8px;
             border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        /* モバイルでスクロールした時にキャンバスを上部に固定するなどの調整用 */
         .sticky-canvas {
             position: sticky;
-            top: 10px;
+            top: 0px;
             z-index: 10;
+            background-color: #f1f5f9;
+            padding-bottom: 8px;
         }
     </style>
 </head>
 <body class="antialiased">
-    <div class="max-w-4xl mx-auto pb-20">
+    <div class="max-w-4xl mx-auto pb-10">
         <!-- ヘッダー -->
-        <header class="p-4 bg-white mb-2 shadow-sm">
-            <h1 class="text-xl font-bold text-gray-800">木取りシミュレーター</h1>
+        <header class="p-3 bg-white mb-1 shadow-sm flex justify-between items-center">
+            <h1 class="text-lg font-bold text-gray-800">木取りシミュレーター</h1>
+            <span class="text-[10px] text-gray-400">JAS末口二乗法</span>
         </header>
 
-        <!-- 計算結果パネル (スマホで見やすく横並びorグリッド) -->
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 px-4 mb-4">
-            <div class="result-card col-span-1">
-                <p class="text-[10px] opacity-70">丸太材積</p>
-                <p class="text-lg font-bold"><span id="logVolume">0</span><span class="text-[10px] ml-1">m³</span></p>
+        <!-- 計算結果パネル -->
+        <div class="grid grid-cols-3 gap-2 px-3 mb-3">
+            <div class="result-card">
+                <p class="text-[9px] opacity-70">丸太材積</p>
+                <p class="text-md font-bold truncate"><span id="logVolume">0</span><span class="text-[9px] ml-0.5 font-normal">m³</span></p>
             </div>
-            <div class="result-card col-span-1">
-                <p class="text-[10px] opacity-70">製品合計</p>
-                <p class="text-lg font-bold"><span id="productVolume">0</span><span class="text-[10px] ml-1">m³</span></p>
+            <div class="result-card">
+                <p class="text-[9px] opacity-70">製品合計</p>
+                <p class="text-md font-bold truncate"><span id="productVolume">0</span><span class="text-[9px] ml-0.5 font-normal">m³</span></p>
             </div>
-            <div class="result-card col-span-2 md:col-span-1 flex justify-between items-center bg-yellow-500 !text-slate-900">
-                <p class="text-[10px] font-bold opacity-80 uppercase">Yield 歩留まり</p>
-                <p class="text-2xl font-black"><span id="yieldRate">0</span><span class="text-sm">%</span></p>
+            <div class="result-card border-b-2 border-yellow-500">
+                <p class="text-[9px] opacity-70 font-bold text-yellow-500">歩留まり</p>
+                <p class="text-md font-bold text-yellow-400"><span id="yieldRate">0</span><span class="text-[9px] ml-0.5 text-white font-normal">%</span></p>
             </div>
         </div>
 
         <!-- メインコンテンツ -->
-        <div class="flex flex-col gap-4 px-4">
-            <!-- プレビューエリア (スマホでは上) -->
+        <div class="flex flex-col gap-2 px-3">
+            <!-- プレビューエリア -->
             <div class="w-full flex justify-center sticky-canvas">
-                <canvas id="canvas" width="600" height="600" class="w-full max-w-[500px]"></canvas>
+                <canvas id="canvas" width="600" height="600" class="w-full max-w-[400px]"></canvas>
             </div>
 
             <!-- 設定フォーム -->
-            <div class="control-panel p-5 space-y-6 pb-24">
+            <div class="control-panel p-4 space-y-5 pb-10">
                 
                 <!-- 基本設定 -->
                 <section>
-                    <h2 class="text-md font-bold border-l-4 border-blue-500 pl-2 mb-4 text-slate-700">基本設定</h2>
-                    <div class="grid grid-cols-2 gap-3">
+                    <h2 class="text-sm font-bold border-l-4 border-blue-500 pl-2 mb-3 text-slate-700">基本設定</h2>
+                    <div class="grid grid-cols-2 gap-2 text-center">
                         <div>
-                            <label>材長 (mm)</label>
+                            <label>材長(mm)</label>
                             <input type="number" id="logLength" value="4000">
                         </div>
                         <div>
-                            <label>末口径 (cm)</label>
+                            <label>末口(cm)</label>
                             <input type="number" id="logDiameter" value="30" step="0.1">
                         </div>
                         <div>
-                            <label>表示倍率</label>
+                            <label>倍率</label>
                             <input type="number" id="zoomScale" value="15">
                         </div>
                         <div>
-                            <label class="text-red-500">のこ身 (mm)</label>
-                            <input type="number" id="kerfWidth" value="3" step="0.1">
+                            <label class="text-red-500">のこ身(mm)</label>
+                            <input type="number" id="kerfWidth" value="2" step="0.1">
                         </div>
                     </div>
                 </section>
 
                 <!-- 角材設定 -->
                 <section>
-                    <h2 class="text-md font-bold border-l-4 border-green-500 pl-2 mb-4 text-slate-700">中心角材</h2>
-                    <div class="grid grid-cols-2 gap-3">
+                    <h2 class="text-sm font-bold border-l-4 border-green-500 pl-2 mb-3 text-slate-700">中心角材</h2>
+                    <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label>高さ (mm)</label>
-                            <input type="number" id="coreHeight" value="150">
+                            <label>高さ(mm)</label>
+                            <input type="number" id="coreHeight" value="120">
                         </div>
                         <div>
-                            <label>幅 (mm)</label>
-                            <input type="number" id="coreWidth" value="150">
+                            <label>幅(mm)</label>
+                            <input type="number" id="coreWidth" value="120">
                         </div>
                     </div>
                 </section>
 
                 <!-- 板の配置 -->
                 <section>
-                    <h2 class="text-md font-bold border-l-4 border-orange-500 pl-2 mb-4 text-slate-700">板の配置 (厚×幅×枚)</h2>
-                    <div id="plankControls" class="space-y-3">
+                    <h2 class="text-sm font-bold border-l-4 border-orange-500 pl-2 mb-2 text-slate-700">板の配置</h2>
+                    
+                    <!-- 表形式のヘッダー -->
+                    <div class="flex items-center gap-2 px-2 mb-1 text-center">
+                        <div class="w-10"></div>
+                        <div class="flex-1 text-[10px] font-bold text-slate-400">厚(mm)</div>
+                        <div class="flex-1 text-[10px] font-bold text-slate-400">幅(mm)</div>
+                        <div class="w-12 text-[10px] font-bold text-slate-400">枚</div>
+                    </div>
+
+                    <div id="plankControls" class="space-y-1">
                         <!-- JSで生成 -->
                     </div>
                 </section>
-
-                <div class="text-[10px] text-slate-400 pt-4 border-t italic text-center">
-                    JAS末口二乗法に基づき計算
-                </div>
             </div>
         </div>
     </div>
@@ -141,19 +152,28 @@
             text: '#6b7280'
         };
 
-        // UI生成: モバイル向けに横幅を広く使ったレイアウト
         const plankContainer = document.getElementById('plankControls');
         for (let i = 1; i <= PLANK_COUNT; i++) {
             const div = document.createElement('div');
-            div.className = "bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-wrap gap-2 items-center justify-between";
-            const label = i <= 4 ? `上下${i}` : `左右${i-4}`;
+            div.className = "bg-white p-1 flex items-center gap-2 border-b border-slate-100";
+            
+            // ラベルの設定 (1~4: 上, 5~8: 左)
+            const sideIndex = i <= 4 ? i : i - 4;
+            const label = i <= 4 ? `上${sideIndex}` : `左${sideIndex}`;
+            
+            // 厚みの初期値を設定
+            let initialThick = 51;
+            if (sideIndex === 3) initialThick = 37;
+            if (sideIndex === 4) initialThick = 19;
+
+            // 枚数の初期値を設定 (1~3は2枚, 4は0枚)
+            const initialCount = (sideIndex === 4) ? 0 : 2;
+
             div.innerHTML = `
-                <div class="w-full sm:w-auto font-bold text-xs text-slate-500 mb-1 sm:mb-0">${label}</div>
-                <div class="flex flex-1 gap-2">
-                    <div class="flex-1"><label>厚</label><input type="number" id="p${i}t" value="${i <= 4 ? 25 : 20}"></div>
-                    <div class="flex-1"><label>幅</label><input type="number" id="p${i}w" value="${i <= 4 ? 120 : 100}"></div>
-                    <div class="w-16"><label>枚</label><input type="number" id="p${i}c" value="0" min="0" max="2"></div>
-                </div>
+                <div class="w-10 font-bold text-[10px] text-slate-500">${label}</div>
+                <div class="flex-1"><input type="number" id="p${i}t" value="${initialThick}"></div>
+                <div class="flex-1"><input type="number" id="p${i}w" value="120"></div>
+                <div class="w-12"><input type="number" id="p${i}c" value="${initialCount}" min="0" max="2"></div>
             `;
             plankContainer.appendChild(div);
         }
@@ -190,14 +210,12 @@
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
 
-            // 丸太
             ctx.beginPath();
             ctx.arc(cx, cy, logDiam / 2, 0, Math.PI * 2);
             ctx.strokeStyle = colors.log;
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // 角材
             ctx.strokeStyle = colors.core;
             ctx.strokeRect(cx - coreW / 2, cy - coreH / 2, coreW, coreH);
 
