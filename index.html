@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>木取りシミュレーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f1f5f9; }
+        canvas { 
+            background-color: #ffffff; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            max-width: 100%;
+            height: auto !important;
+        }
+        .control-panel { 
+            background-color: #ffffff;
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        input[type="number"] { 
+            width: 100%; 
+            border: 1px solid #cbd5e1; 
+            padding: 8px; 
+            border-radius: 8px;
+            font-size: 16px; /* モバイルでのズーム防止 */
+            appearance: none;
+        }
+        label { font-size: 0.75rem; font-weight: 700; color: #475569; margin-bottom: 2px; display: block; }
+        .result-card { 
+            background: linear-gradient(135deg, #334155 0%, #0f172a 100%); 
+            color: white; 
+            padding: 12px;
+            border-radius: 12px;
+        }
+        /* モバイルでスクロールした時にキャンバスを上部に固定するなどの調整用 */
+        .sticky-canvas {
+            position: sticky;
+            top: 10px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="max-w-4xl mx-auto pb-20">
+        <!-- ヘッダー -->
+        <header class="p-4 bg-white mb-2 shadow-sm">
+            <h1 class="text-xl font-bold text-gray-800">木取りシミュレーター</h1>
+        </header>
+
+        <!-- 計算結果パネル (スマホで見やすく横並びorグリッド) -->
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2 px-4 mb-4">
+            <div class="result-card col-span-1">
+                <p class="text-[10px] opacity-70">丸太材積</p>
+                <p class="text-lg font-bold"><span id="logVolume">0</span><span class="text-[10px] ml-1">m³</span></p>
+            </div>
+            <div class="result-card col-span-1">
+                <p class="text-[10px] opacity-70">製品合計</p>
+                <p class="text-lg font-bold"><span id="productVolume">0</span><span class="text-[10px] ml-1">m³</span></p>
+            </div>
+            <div class="result-card col-span-2 md:col-span-1 flex justify-between items-center bg-yellow-500 !text-slate-900">
+                <p class="text-[10px] font-bold opacity-80 uppercase">Yield 歩留まり</p>
+                <p class="text-2xl font-black"><span id="yieldRate">0</span><span class="text-sm">%</span></p>
+            </div>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="flex flex-col gap-4 px-4">
+            <!-- プレビューエリア (スマホでは上) -->
+            <div class="w-full flex justify-center sticky-canvas">
+                <canvas id="canvas" width="600" height="600" class="w-full max-w-[500px]"></canvas>
+            </div>
+
+            <!-- 設定フォーム -->
+            <div class="control-panel p-5 space-y-6 pb-24">
+                
+                <!-- 基本設定 -->
+                <section>
+                    <h2 class="text-md font-bold border-l-4 border-blue-500 pl-2 mb-4 text-slate-700">基本設定</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label>材長 (mm)</label>
+                            <input type="number" id="logLength" value="4000">
+                        </div>
+                        <div>
+                            <label>末口径 (cm)</label>
+                            <input type="number" id="logDiameter" value="30" step="0.1">
+                        </div>
+                        <div>
+                            <label>表示倍率</label>
+                            <input type="number" id="zoomScale" value="15">
+                        </div>
+                        <div>
+                            <label class="text-red-500">のこ身 (mm)</label>
+                            <input type="number" id="kerfWidth" value="3" step="0.1">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 角材設定 -->
+                <section>
+                    <h2 class="text-md font-bold border-l-4 border-green-500 pl-2 mb-4 text-slate-700">中心角材</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label>高さ (mm)</label>
+                            <input type="number" id="coreHeight" value="150">
+                        </div>
+                        <div>
+                            <label>幅 (mm)</label>
+                            <input type="number" id="coreWidth" value="150">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 板の配置 -->
+                <section>
+                    <h2 class="text-md font-bold border-l-4 border-orange-500 pl-2 mb-4 text-slate-700">板の配置 (厚×幅×枚)</h2>
+                    <div id="plankControls" class="space-y-3">
+                        <!-- JSで生成 -->
+                    </div>
+                </section>
+
+                <div class="text-[10px] text-slate-400 pt-4 border-t italic text-center">
+                    JAS末口二乗法に基づき計算
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const PLANK_COUNT = 8;
+        const colors = {
+            log: '#3b82f6',
+            core: '#10b981',
+            plank: '#f97316',
+            text: '#6b7280'
+        };
+
+        // UI生成: モバイル向けに横幅を広く使ったレイアウト
+        const plankContainer = document.getElementById('plankControls');
+        for (let i = 1; i <= PLANK_COUNT; i++) {
+            const div = document.createElement('div');
+            div.className = "bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-wrap gap-2 items-center justify-between";
+            const label = i <= 4 ? `上下${i}` : `左右${i-4}`;
+            div.innerHTML = `
+                <div class="w-full sm:w-auto font-bold text-xs text-slate-500 mb-1 sm:mb-0">${label}</div>
+                <div class="flex flex-1 gap-2">
+                    <div class="flex-1"><label>厚</label><input type="number" id="p${i}t" value="${i <= 4 ? 25 : 20}"></div>
+                    <div class="flex-1"><label>幅</label><input type="number" id="p${i}w" value="${i <= 4 ? 120 : 100}"></div>
+                    <div class="w-16"><label>枚</label><input type="number" id="p${i}c" value="0" min="0" max="2"></div>
+                </div>
+            `;
+            plankContainer.appendChild(div);
+        }
+
+        function draw() {
+            const logLengthMm = parseFloat(document.getElementById('logLength').value) || 0;
+            const logDiamCm = parseFloat(document.getElementById('logDiameter').value) || 0;
+            const zoom = parseFloat(document.getElementById('zoomScale').value) || 10;
+            const kerfMm = parseFloat(document.getElementById('kerfWidth').value) || 0;
+            const coreHMm = parseFloat(document.getElementById('coreHeight').value) || 0;
+            const coreWMm = parseFloat(document.getElementById('coreWidth').value) || 0;
+
+            const kerf = (kerfMm / 10) * zoom;
+            const coreH = (coreHMm / 10) * zoom;
+            const coreW = (coreWMm / 10) * zoom;
+            const logDiam = logDiamCm * zoom;
+            const logLengthM = logLengthMm / 1000;
+
+            let logVolumeM3 = 0;
+            if (logLengthM > 0 && logDiamCm > 0) {
+                let rawVol = 0;
+                if (logLengthM < 6) {
+                    rawVol = (logDiamCm * logDiamCm * logLengthM) / 10000;
+                } else {
+                    const factor = logDiamCm + (logLengthM - 4) / 2;
+                    rawVol = (factor * factor * logLengthM) / 10000;
+                }
+                logVolumeM3 = Math.round(rawVol * 1000) / 1000;
+            }
+
+            let totalProductVolumeM3 = (coreHMm / 1000) * (coreWMm / 1000) * logLengthM;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+
+            // 丸太
+            ctx.beginPath();
+            ctx.arc(cx, cy, logDiam / 2, 0, Math.PI * 2);
+            ctx.strokeStyle = colors.log;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 角材
+            ctx.strokeStyle = colors.core;
+            ctx.strokeRect(cx - coreW / 2, cy - coreH / 2, coreW, coreH);
+
+            let offsetUe = cy - coreH / 2 - kerf;
+            let offsetSita = cy + coreH / 2 + kerf;
+            let offsetHidari = cx - coreW / 2 - kerf;
+            let offsetMigi = cx + coreW / 2 + kerf;
+
+            ctx.strokeStyle = colors.plank;
+
+            for (let i = 1; i <= PLANK_COUNT; i++) {
+                const tMm = parseFloat(document.getElementById(`p${i}t`).value) || 0;
+                const wMm = parseFloat(document.getElementById(`p${i}w`).value) || 0;
+                const count = parseInt(document.getElementById(`p${i}c`).value) || 0;
+                const t = (tMm / 10) * zoom;
+                const w = (wMm / 10) * zoom;
+                if (t <= 0 || w <= 0 || count <= 0) continue;
+
+                totalProductVolumeM3 += (tMm / 1000) * (wMm / 1000) * logLengthM * count;
+
+                if (i <= 4) {
+                    ctx.strokeRect(cx - w / 2, offsetUe - t, w, t);
+                    offsetUe -= (t + kerf);
+                    if (count >= 2) {
+                        ctx.strokeRect(cx - w / 2, offsetSita, w, t);
+                        offsetSita += (t + kerf);
+                    }
+                } else {
+                    ctx.strokeRect(offsetMigi, cy - w / 2, t, w);
+                    offsetMigi += (t + kerf);
+                    if (count >= 2) {
+                        ctx.strokeRect(offsetHidari - t, cy - w / 2, t, w);
+                        offsetHidari -= (t + kerf);
+                    }
+                }
+            }
+
+            totalProductVolumeM3 = Math.round(totalProductVolumeM3 * 10000) / 10000;
+            const yieldRate = logVolumeM3 > 0 ? (totalProductVolumeM3 / logVolumeM3) * 100 : 0;
+
+            document.getElementById('logVolume').innerText = logVolumeM3.toFixed(3);
+            document.getElementById('productVolume').innerText = totalProductVolumeM3.toFixed(4);
+            document.getElementById('yieldRate').innerText = yieldRate.toFixed(1);
+
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(canvas.width, cy); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', draw);
+        });
+
+        window.onload = draw;
+    </script>
+</body>
+</html>
